@@ -31,7 +31,10 @@ jobs:
           google-chrome \
             --no-sandbox \
             --disable-dev-shm-usage \
-            --disable-gpu \
+            --use-gl=angle \
+            --use-angle=swiftshader \
+            --enable-unsafe-webgpu \
+            --autoplay-policy=no-user-gesture-required \
             --disable-notifications \
             --no-first-run \
             --disable-fre \
@@ -39,7 +42,7 @@ jobs:
             --kiosk \
             --window-size=1920,1080 \
             "https://v2.weatherscan.net/?Pensacola,FL" 2>/dev/null &
-          sleep 8
+          sleep 15
 
       - name: Stream to YouTube via FFmpeg
         env:
