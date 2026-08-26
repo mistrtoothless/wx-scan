@@ -1,0 +1,52 @@
+name: WeatherScan Live Stream
+
+on:
+  schedule:
+    # Restarts every 5 hours to stay under GitHub's 6-hour execution limit per job
+    - cron: '0 */5 * * *'
+  workflow_dispatch: # Adds a manual "Run" button in GitHub Actions
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Google Chrome & Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb ffmpeg wget gnupg
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Launch Virtual Display & Chrome
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 &
+          export DISPLAY=:99
+          sleep 2
+          google-chrome \
+            --no-sandbox \
+            --disable-dev-shm-usage \
+            --disable-gpu \
+            --disable-notifications \
+            --kiosk \
+            --window-size=1920,1080 \
+            "https://v2.weatherscan.net/?Pensacola,FL" &
+          sleep 8
+
+      - name: Stream to YouTube via FFmpeg
+        env:
+          YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+        run: |
+          export DISPLAY=:99
+          # Runs for 4 hours 55 minutes (17700s) before cycling cleanly
+          timeout 17700s bash -c '
+            while true; do
+              ffmpeg -f x11grab -video_size 1920x1080 -i :99.0 \
+                -c:v libx264 -preset ultrafast -tune zerolatency \
+                -b:v 2500k -maxrate 2500k -bufsize 5000k \
+                -pix_fmt yuv420p -g 60 \
+                -f flv "rtmp://a.rtmp.youtube.com/live2/'"$YOUTUBE_STREAM_KEY"'"
+              sleep 5
+            done
+          ' || true
