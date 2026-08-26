@@ -33,6 +33,9 @@ jobs:
             --disable-dev-shm-usage \
             --disable-gpu \
             --disable-notifications \
+            --no-first-run \
+            --disable-fre \
+            --no-default-browser-check \
             --kiosk \
             --window-size=1920,1080 \
             "https://v2.weatherscan.net/?Pensacola,FL" 2>/dev/null &
