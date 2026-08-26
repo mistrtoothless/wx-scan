@@ -25,18 +25,16 @@ jobs:
           Xvfb :99 -screen 0 1920x1080x24 2>/dev/null &
           export DISPLAY=:99
           
-          # Initialize PulseAudio with a continuous dummy sink clock
-          pulseaudio --start --exit-idle-time=-1
-          pacmd load-module module-dummy-sink sink_name=vsnk rate=44100 channels=2
-          pacmd set-default-sink vsnk
-          pacmd set-default-source vsnk.monitor
-          
+          # Start D-Bus session and PulseAudio with a virtual null sink
+          eval $(dbus-launch --sh-syntax)
+          pulseaudio -D --exit-idle-time=-1 --system=false
           sleep 2
           
-          unset DBUS_SESSION_BUS_ADDRESS
-          unset DBUS_SYSTEM_BUS_ADDRESS
+          # Load null sink module safely via pactl
+          pactl load-module module-null-sink sink_name=vsnk sink_properties=device.description="VirtualSink"
+          pactl set-default-sink vsnk
           
-          # Launch Chrome with WebGL software rendering and forced audio output
+          # Launch Chrome linked to PulseAudio
           google-chrome \
             --no-sandbox \
             --disable-dev-shm-usage \
