@@ -2,9 +2,9 @@ name: WeatherScan Live Stream
 
 on:
   schedule:
-    # Restarts every 5 hours to stay under GitHub's 6-hour execution limit per job
+    # Restarts every 5 hours to stay within GitHub's 6-hour execution limit per job
     - cron: '0 */5 * * *'
-  workflow_dispatch: # Adds a manual "Run" button in GitHub Actions
+  workflow_dispatch: # Enables manual start button in GitHub Actions
 
 jobs:
   stream:
@@ -21,9 +21,13 @@ jobs:
 
       - name: Launch Virtual Display & Chrome
         run: |
-          Xvfb :99 -screen 0 1920x1080x24 &
+          Xvfb :99 -screen 0 1920x1080x24 2>/dev/null &
           export DISPLAY=:99
           sleep 2
+          
+          unset DBUS_SESSION_BUS_ADDRESS
+          unset DBUS_SYSTEM_BUS_ADDRESS
+          
           google-chrome \
             --no-sandbox \
             --disable-dev-shm-usage \
@@ -31,7 +35,7 @@ jobs:
             --disable-notifications \
             --kiosk \
             --window-size=1920,1080 \
-            "https://v2.weatherscan.net/?Pensacola,FL" &
+            "https://v2.weatherscan.net/?Pensacola,FL" 2>/dev/null &
           sleep 8
 
       - name: Stream to YouTube via FFmpeg
@@ -39,13 +43,15 @@ jobs:
           YOUTUBE_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           export DISPLAY=:99
-          # Runs for 4 hours 55 minutes (17700s) before cycling cleanly
+          # Runs for 4 hours 55 minutes (17700 seconds) before clean cycle
           timeout 17700s bash -c '
             while true; do
               ffmpeg -f x11grab -video_size 1920x1080 -i :99.0 \
+                -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
                 -c:v libx264 -preset ultrafast -tune zerolatency \
                 -b:v 2500k -maxrate 2500k -bufsize 5000k \
                 -pix_fmt yuv420p -g 60 \
+                -c:a aac -b:a 128k \
                 -f flv "rtmp://a.rtmp.youtube.com/live2/'"$YOUTUBE_STREAM_KEY"'"
               sleep 5
             done
